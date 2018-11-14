@@ -4,13 +4,10 @@ scriptPath=`pwd`
 repository="$1"
 afterDate="$2"
 
-echo $afterDate
-echo $repository-evo.log
-
-echo $(dirname $0)
-
 mkdir working
 mkdir output
 
 cd $repository
 git log --pretty=format:'[%h] %aN %ad %s' --date=short --numstat --after=$afterDate > $scriptPath/working/git-evo.log
+cd $scriptPath
+java -jar libs/code-maat-1.1-SNAPSHOT-standalone.jar -l $scriptPath/working/git-evo.log -c git -a revisions > $scriptPath/working/git-rev.log
