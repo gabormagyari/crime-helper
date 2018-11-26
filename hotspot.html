@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+.node {
+  cursor: pointer;
+}
+
+.node:hover {
+  stroke: #000;
+  stroke-width: 1.5px;
+}
+
+.node--leaf {
+  fill: white;
+}
+
+.label {
+  font: 11px "Helvetica Neue", Helvetica, Arial, sans-serif;
+  text-anchor: middle;
+  text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff, 0 -1px 0 #fff;
+}
+
+.label,
+.node--root,
+.node--leaf {
+  pointer-events: none;
+}
+
+</style>
+<svg width="960" height="960"></svg>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="https://d3js.org/d3-color.v1.min.js"></script>
+<script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
+<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+<script>
+
+var maxSize = 0;
+
+var burrow = function(table) {
+  // create nested object
+  var obj = {};
+  table.forEach(function(row) {
+    // start at root
+    var layer = obj;
+
+    // create children as nested objects
+    row.taxonomy.forEach(function(key) {
+      layer[key] = key in layer ? layer[key] : {
+          name: key,
+          size: row.code,
+          freq: row.revisions
+      };
+      layer = layer[key];
+    });
+  });
+
+  // recursively create children array
+  var descend = function(obj, depth) {
+    var arr = [];
+    var depth = depth || 0;
+    for (var k in obj) {
+        if (k !== "freq" && k !== "name" && k !== "size" ) {
+            if (parseInt(obj[k].freq) > maxSize) maxSize = parseInt(obj[k].freq); 
+            var child = {
+                id: obj[k].name,
+                r: obj[k].size,
+                freq: obj[k].freq,
+                children: descend(obj[k], depth+1)
+            };
+            arr.push(child);
+        }
+    }
+    return arr;
+  };
+
+  // use descend to create nested children arrys
+  return {
+    name: "root",
+    children: descend(obj, 1)
+  }
+};
+
+var svg = d3.select("svg"),
+    margin = 20,
+    diameter = +svg.attr("width"),
+    g = svg.append("g").attr("transform", "translate(" + diameter / 2 + "," + diameter / 2 + ")");
+
+var color = d3.scaleOrdinal(d3.schemeGreys[9]);
+
+var pack = d3.pack()
+    .size([diameter - margin, diameter - margin])
+    .padding(2);
+
+d3.csv("hotspot.csv", function(error, data) {
+  if (error) throw error;
+
+  data.forEach(function(row) {
+    row.taxonomy = row.module.split("/");
+  });
+
+  var root = d3.hierarchy(burrow(data))
+      .sum(function(d) { return d.r; })
+      .sort(function(a, b) { return b.r - a.r; });
+
+  var focus = root,
+      nodes = pack(root).descendants(),
+      view;
+
+  var color1 = d3.scaleLinear()
+        .domain([0, maxSize])
+        .range(['#1a9850', '#d73027'])
+        .interpolate(d3.interpolateRgb); //interpolateHsl interpolateHcl interpolateRgb
+
+  var circle = g.selectAll("circle")
+    .data(nodes)
+    .enter().append("circle")
+      .attr("class", function(d) { return d.parent ? d.children ? "node" : "node node--leaf" : "node node--root"; })
+      .style("fill", function(d) { return d.children ? color(d.depth) : color1(d.data.freq); })
+      .on("click", function(d) { if (focus !== d) zoom(d), d3.event.stopPropagation(); });
+
+  var text = g.selectAll("text")
+    .data(nodes)
+    .enter().append("text")
+      .attr("class", "label")
+      .style("fill-opacity", function(d) { return d.parent === root ? 1 : 0; })
+      .style("display", function(d) { return d.parent === root ? "inline" : "none"; })
+      .text(function(d) { return d.data.id; });
+
+  var node = g.selectAll("circle,text");
+
+  svg
+      .style("background", color(-1))
+      .on("click", function() { zoom(root); });
+
+  zoomTo([root.x, root.y, root.r * 2 + margin]);
+
+  function zoom(d) {
+    var focus0 = focus; focus = d;
+
+    var transition = d3.transition()
+        .duration(d3.event.altKey ? 7500 : 750)
+        .tween("zoom", function(d) {
+          var i = d3.interpolateZoom(view, [focus.x, focus.y, focus.r * 2 + margin]);
+          return function(t) { zoomTo(i(t)); };
+        });
+
+    transition.selectAll("text")
+      .filter(function(d) { return d.parent === focus || this.style.display === "inline"; })
+        .style("fill-opacity", function(d) { return d.parent === focus ? 1 : 0; })
+        .on("start", function(d) { if (d.parent === focus) this.style.display = "inline"; })
+        .on("end", function(d) { if (d.parent !== focus) this.style.display = "none"; });
+  }
+
+  function zoomTo(v) {
+    var k = diameter / v[2]; view = v;
+    node.attr("transform", function(d) { return "translate(" + (d.x - v[0]) * k + "," + (d.y - v[1]) * k + ")"; });
+    circle.attr("r", function(d) { return d.r * k; });
+  }
+});
+
+</script>
