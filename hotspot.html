@@ -60,7 +60,7 @@ var burrow = function(table) {
     var arr = [];
     var depth = depth || 0;
     for (var k in obj) {
-        if (k !== "freq" && k !== "name" && k !== "size" ) {
+        if (k !== "freq" && k !== "name" && k !== "size" && k !== "vendor" && k !== "dist") {
             if (parseInt(obj[k].freq) > maxSize) maxSize = parseInt(obj[k].freq); 
             var child = {
                 id: obj[k].name,
@@ -107,10 +107,9 @@ d3.csv("hotspot.csv", function(error, data) {
       nodes = pack(root).descendants(),
       view;
 
-  var color1 = d3.scaleLinear()
+  var color1 = d3.scaleSqrt()
         .domain([0, maxSize])
-        .range(['#1a9850', '#d73027'])
-        .interpolate(d3.interpolateRgb); //interpolateHsl interpolateHcl interpolateRgb
+        .range(['green', 'red']);
 
   var circle = g.selectAll("circle")
     .data(nodes)
@@ -119,13 +118,18 @@ d3.csv("hotspot.csv", function(error, data) {
       .style("fill", function(d) { return d.children ? color(d.depth) : color1(d.data.freq); })
       .on("click", function(d) { if (focus !== d) zoom(d), d3.event.stopPropagation(); });
 
+
+  circle.append("title").text(d => d.data.id + ":" + d.value);
+
   var text = g.selectAll("text")
     .data(nodes)
     .enter().append("text")
       .attr("class", "label")
       .style("fill-opacity", function(d) { return d.parent === root ? 1 : 0; })
-      .style("display", function(d) { return d.parent === root ? "inline" : "none"; })
-      .text(function(d) { return d.data.id; });
+      .style("display", function(d) { return d.parent === root && (d.r > 5) ? "inline" : "none"; })
+      .text(function(d) { return d.data.id; })
+      .style("font-size", function(d) { return Math.min(d.r, (d.r - 8) / this.getComputedTextLength() * 20) + "px"; })
+      .attr("dy", ".35em");;
 
   var node = g.selectAll("circle,text");
 
@@ -148,7 +152,7 @@ d3.csv("hotspot.csv", function(error, data) {
     transition.selectAll("text")
       .filter(function(d) { return d.parent === focus || this.style.display === "inline"; })
         .style("fill-opacity", function(d) { return d.parent === focus ? 1 : 0; })
-        .on("start", function(d) { if (d.parent === focus) this.style.display = "inline"; })
+        .on("start", function(d) { if (d.parent === focus && (d.r > 5)) this.style.display = "inline"; })
         .on("end", function(d) { if (d.parent !== focus) this.style.display = "none"; });
   }
 

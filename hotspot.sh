@@ -14,4 +14,4 @@ cloc ./ --unix --by-file --csv --quiet > $scriptPath/working/git-loc.csv
 cd $scriptPath
 java -jar libs/code-maat-1.1-SNAPSHOT-standalone.jar -l ./working/git-evo.log -c git -a revisions > ./working/git-rev.csv
 python libs/merge_comp_freqs.py ./working/git-rev.csv ./working/git-loc.csv > ./output/hotspot.csv
-cp ./hotspot.html ./output/hotspot.csv
+cp ./hotspot.html ./output/hotspot.html
