@@ -8,7 +8,7 @@ Prerequisites:
 - Leiningen clojure compiler
 - cloc from npm
 
-Hotspost analysys:
+Hotspot analysys:
 ```
-sh -x ./hotspot.sh repopath 2017-01-01
+sh ./hotspot.sh repopath 2017-01-01
 ```
